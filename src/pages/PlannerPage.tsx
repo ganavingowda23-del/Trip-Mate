@@ -43,10 +43,10 @@ export function PlannerPage() {
   const paramBudget = searchParams.get('budget');
   const paramTripId = searchParams.get('tripId');
 
-  const [destination, setDestination] = useState(paramDest || 'Kyoto, Japan');
-  const [startingLocation, setStartingLocation] = useState('London');
+  const [destination, setDestination] = useState(paramDest || 'Hampi, Karnataka');
+  const [startingLocation, setStartingLocation] = useState('Bengaluru');
   const [travelDates, setTravelDates] = useState('');
-  const [daysCount, setDaysCount] = useState(Math.max(1, Math.min(21, paramDays)));
+  const [daysCount, setDaysCount] = useState(Math.max(1, Math.min(21, paramDays || 4)));
   const [travelers, setTravelers] = useState(Math.max(1, Math.min(20, paramTravelers)));
   const [budgetTier, setBudgetTier] = useState<BudgetTier>(
     paramBudget === 'budget' || paramBudget === 'moderate' || paramBudget === 'luxury'
@@ -286,9 +286,25 @@ export function PlannerPage() {
                 required
                 value={destination}
                 onChange={(e) => setDestination(e.target.value)}
-                placeholder="e.g. Kyoto, Amalfi Coast, Lisbon"
+                placeholder="e.g. Gokarna, Hampi, Spiti Valley, Bundi"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm text-[#0B1F3A] focus:border-[#0284C7] focus:outline-none"
               />
+              <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Quick pick small Indian destinations">
+                {['Gokarna', 'Hampi', 'Spiti Valley', 'Coorg', 'Bundi', 'Ziro Valley'].map((spot) => (
+                  <button
+                    key={spot}
+                    type="button"
+                    onClick={() => setDestination(`${spot}, India`)}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors cursor-pointer ${
+                      destination.toLowerCase().includes(spot.toLowerCase())
+                        ? 'bg-[#0B1F3A] text-white border-[#0B1F3A]'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    {spot}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div>
@@ -300,7 +316,7 @@ export function PlannerPage() {
                 type="text"
                 value={startingLocation}
                 onChange={(e) => setStartingLocation(e.target.value)}
-                placeholder="e.g. New York, London, Bengaluru"
+                placeholder="e.g. Bengaluru, Mumbai, Delhi, Chennai"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm text-[#0B1F3A] focus:border-[#0284C7] focus:outline-none"
               />
             </div>

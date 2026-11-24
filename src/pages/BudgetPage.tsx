@@ -1,83 +1,92 @@
 import { ArrowRight, Calculator, Info, RotateCcw } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { DESTINATIONS } from '../data/destinations';
+import { DESTINATIONS, INR_PER_USD } from '../data/destinations';
 import type { BudgetTier } from '../types/trip';
 
 const TIER_DEFAULTS: Record<
   BudgetTier,
   {
-    label: string;
-    stayPerNight: number;
-    foodPerDay: number;
-    activitiesPerDay: number;
-    transportPerTraveler: number;
+    stayPerNightUsd: number;
+    foodPerDayUsd: number;
+    activitiesPerDayUsd: number;
+    transportDomesticUsd: number;
+    transportIntlUsd: number;
   }
 > = {
   budget: {
-    label: 'Budget',
-    stayPerNight: 65,
-    foodPerDay: 35,
-    activitiesPerDay: 25,
-    transportPerTraveler: 240,
+    stayPerNightUsd: 26,
+    foodPerDayUsd: 14,
+    activitiesPerDayUsd: 10,
+    transportDomesticUsd: 55,
+    transportIntlUsd: 420,
   },
   moderate: {
-    label: 'Moderate',
-    stayPerNight: 165,
-    foodPerDay: 65,
-    activitiesPerDay: 55,
-    transportPerTraveler: 460,
+    stayPerNightUsd: 68,
+    foodPerDayUsd: 28,
+    activitiesPerDayUsd: 22,
+    transportDomesticUsd: 120,
+    transportIntlUsd: 780,
   },
   luxury: {
-    label: 'Luxury',
-    stayPerNight: 420,
-    foodPerDay: 145,
-    activitiesPerDay: 130,
-    transportPerTraveler: 950,
+    stayPerNightUsd: 190,
+    foodPerDayUsd: 65,
+    activitiesPerDayUsd: 55,
+    transportDomesticUsd: 260,
+    transportIntlUsd: 1450,
   },
 };
 
 export function BudgetPage() {
   const [searchParams] = useSearchParams();
   const paramDest = searchParams.get('destination') ?? '';
-  const paramDays = Number(searchParams.get('days')) || 5;
+  const paramDays = Number(searchParams.get('days')) || 4;
 
   const matchedDest = DESTINATIONS.find(
     (d) => d.name.toLowerCase() === paramDest.toLowerCase()
-  );
+  ) ?? DESTINATIONS[0];
 
-  const [destination, setDestination] = useState(matchedDest?.name ?? (paramDest || 'Kyoto'));
+  const [destination, setDestination] = useState(paramDest || matchedDest.name);
   const [days, setDays] = useState(Math.max(1, Math.min(21, paramDays)));
   const [travelers, setTravelers] = useState(2);
   const [budgetTier, setBudgetTier] = useState<BudgetTier>('moderate');
-  const [customTransportPerPerson, setCustomTransportPerPerson] = useState<number>(
-    TIER_DEFAULTS.moderate.transportPerTraveler
+  const [currency, setCurrency] = useState<'INR' | 'USD'>('INR');
+
+  const initialIsIndia = matchedDest.country === 'India';
+  const [customTransportPerPersonUsd, setCustomTransportPerPersonUsd] = useState<number>(
+    initialIsIndia
+      ? TIER_DEFAULTS.moderate.transportDomesticUsd
+      : TIER_DEFAULTS.moderate.transportIntlUsd
   );
-  const [customNightlyRate, setCustomNightlyRate] = useState<number>(
-    TIER_DEFAULTS.moderate.stayPerNight
+  const [customNightlyRateUsd, setCustomNightlyRateUsd] = useState<number>(
+    Math.round(matchedDest.dailyBudgetUsd.moderate * 0.55)
   );
-  const [customFoodPerPersonDay, setCustomFoodPerPersonDay] = useState<number>(
-    TIER_DEFAULTS.moderate.foodPerDay
+  const [customFoodPerPersonDayUsd, setCustomFoodPerPersonDayUsd] = useState<number>(
+    Math.round(matchedDest.dailyBudgetUsd.moderate * 0.25)
   );
-  const [customActivitiesPerPersonDay, setCustomActivitiesPerPersonDay] = useState<number>(
-    TIER_DEFAULTS.moderate.activitiesPerDay
+  const [customActivitiesPerPersonDayUsd, setCustomActivitiesPerPersonDayUsd] = useState<number>(
+    Math.round(matchedDest.dailyBudgetUsd.moderate * 0.2)
   );
 
   const applyTierPreset = (tier: BudgetTier, destName = destination) => {
     setBudgetTier(tier);
     const destObj = DESTINATIONS.find((d) => d.name.toLowerCase() === destName.toLowerCase());
     const defaults = TIER_DEFAULTS[tier];
+    const isIndia = destObj ? destObj.country === 'India' : true;
+
     if (destObj) {
       const daily = destObj.dailyBudgetUsd[tier];
-      setCustomNightlyRate(Math.round(daily * 0.55));
-      setCustomFoodPerPersonDay(Math.round(daily * 0.25));
-      setCustomActivitiesPerPersonDay(Math.round(daily * 0.2));
+      setCustomNightlyRateUsd(Math.max(10, Math.round(daily * 0.55)));
+      setCustomFoodPerPersonDayUsd(Math.max(5, Math.round(daily * 0.25)));
+      setCustomActivitiesPerPersonDayUsd(Math.max(5, Math.round(daily * 0.2)));
     } else {
-      setCustomNightlyRate(defaults.stayPerNight);
-      setCustomFoodPerPersonDay(defaults.foodPerDay);
-      setCustomActivitiesPerPersonDay(defaults.activitiesPerDay);
+      setCustomNightlyRateUsd(defaults.stayPerNightUsd);
+      setCustomFoodPerPersonDayUsd(defaults.foodPerDayUsd);
+      setCustomActivitiesPerPersonDayUsd(defaults.activitiesPerDayUsd);
     }
-    setCustomTransportPerPerson(defaults.transportPerTraveler);
+    setCustomTransportPerPersonUsd(
+      isIndia ? defaults.transportDomesticUsd : defaults.transportIntlUsd
+    );
   };
 
   const handleDestinationSelect = (name: string) => {
@@ -89,24 +98,45 @@ export function BudgetPage() {
   const nights = Math.max(1, days - 1);
 
   const breakdown = useMemo(() => {
-    const transport = Math.round(customTransportPerPerson * travelers);
-    const accommodation = Math.round(customNightlyRate * roomsNeeded * nights);
-    const food = Math.round(customFoodPerPersonDay * travelers * days);
-    const activities = Math.round(customActivitiesPerPersonDay * travelers * days);
+    const transportUsd = Math.round(customTransportPerPersonUsd * travelers);
+    const accommodationUsd = Math.round(customNightlyRateUsd * roomsNeeded * nights);
+    const foodUsd = Math.round(customFoodPerPersonDayUsd * travelers * days);
+    const activitiesUsd = Math.round(customActivitiesPerPersonDayUsd * travelers * days);
+    const totalUsd = transportUsd + accommodationUsd + foodUsd + activitiesUsd;
+
+    const factor = currency === 'INR' ? INR_PER_USD : 1;
+    const roundDisplay = (usd: number) =>
+      currency === 'INR' ? Math.round((usd * factor) / 100) * 100 : usd;
+
+    const transport = roundDisplay(transportUsd);
+    const accommodation = roundDisplay(accommodationUsd);
+    const food = roundDisplay(foodUsd);
+    const activities = roundDisplay(activitiesUsd);
     const total = transport + accommodation + food + activities;
     const perPerson = Math.round(total / Math.max(1, travelers));
     const perDay = Math.round(total / Math.max(1, days));
+
     return { transport, accommodation, food, activities, total, perPerson, perDay };
   }, [
-    customActivitiesPerPersonDay,
-    customFoodPerPersonDay,
-    customNightlyRate,
-    customTransportPerPerson,
+    currency,
+    customActivitiesPerPersonDayUsd,
+    customFoodPerPersonDayUsd,
+    customNightlyRateUsd,
+    customTransportPerPersonUsd,
     days,
     nights,
     roomsNeeded,
     travelers,
   ]);
+
+  const symbol = currency === 'INR' ? '₹' : '$';
+  const formatAmount = (val: number) =>
+    currency === 'INR' ? `${symbol}${val.toLocaleString('en-IN')}` : `${symbol}${val.toLocaleString()}`;
+
+  const toDisplayUnit = (usd: number) =>
+    currency === 'INR' ? Math.round(usd * INR_PER_USD) : usd;
+  const fromDisplayUnit = (displayVal: number) =>
+    currency === 'INR' ? displayVal / INR_PER_USD : displayVal;
 
   const categories = [
     { label: 'Transport & Transit', amount: breakdown.transport, color: 'bg-[#0B1F3A]' },
@@ -118,13 +148,42 @@ export function BudgetPage() {
   return (
     <div className="bg-[#F8FAFC] min-h-[calc(100vh-4rem)]">
       <div className="bg-[#0B1F3A] text-white py-12 sm:py-16 border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-balance mb-3">
-            Travel Budget Calculator
-          </h1>
-          <p className="text-slate-300 text-base max-w-2xl">
-            Adjust your budget tier, trip length, and traveller count to estimate approximate costs across transport, lodging, dining, and activities.
-          </p>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+          <div>
+            <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-balance mb-3">
+              Travel Budget Calculator
+            </h1>
+            <p className="text-slate-300 text-base max-w-2xl">
+              Estimate approximate costs for domestic trips across India or international small-town journeys in INR (₹) or USD ($).
+            </p>
+          </div>
+
+          <div
+            className="inline-flex items-center gap-1 p-1 rounded-xl bg-white/10 border border-white/15 self-start lg:self-auto"
+            role="group"
+            aria-label="Currency selector"
+          >
+            <button
+              type="button"
+              onClick={() => setCurrency('INR')}
+              aria-pressed={currency === 'INR'}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                currency === 'INR' ? 'bg-[#38BDF8] text-[#0B1F3A]' : 'text-white hover:bg-white/10'
+              }`}
+            >
+              INR (₹)
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrency('USD')}
+              aria-pressed={currency === 'USD'}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                currency === 'USD' ? 'bg-[#38BDF8] text-[#0B1F3A]' : 'text-white hover:bg-white/10'
+              }`}
+            >
+              USD ($)
+            </button>
+          </div>
         </div>
       </div>
 
@@ -152,7 +211,7 @@ export function BudgetPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
                 <label htmlFor="budget-destination" className="block text-sm font-medium text-[#0B1F3A] mb-1.5">
-                  Destination
+                  Destination (India or Global)
                 </label>
                 <input
                   id="budget-destination"
@@ -164,7 +223,9 @@ export function BudgetPage() {
                 />
                 <datalist id="tripmate-destinations-list">
                   {DESTINATIONS.map((d) => (
-                    <option key={d.id} value={d.name} />
+                    <option key={d.id} value={d.name}>
+                      {d.stateOrProvince}, {d.country}
+                    </option>
                   ))}
                 </datalist>
               </div>
@@ -237,34 +298,40 @@ export function BudgetPage() {
 
             <div className="pt-4 border-t border-slate-100">
               <h3 className="text-sm font-semibold text-[#0B1F3A] mb-4">
-                Fine-tune approximate unit rates (USD)
+                Fine-tune approximate unit rates ({currency})
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="rate-transport" className="block text-xs text-slate-600 mb-1">
-                    Transport per traveller (flights / rail)
+                    Transport per traveller (train / flight / cab)
                   </label>
                   <input
                     id="rate-transport"
                     type="number"
                     min={0}
-                    max={10000}
-                    value={customTransportPerPerson}
-                    onChange={(e) => setCustomTransportPerPerson(Math.max(0, Number(e.target.value) || 0))}
+                    value={toDisplayUnit(customTransportPerPersonUsd)}
+                    onChange={(e) =>
+                      setCustomTransportPerPersonUsd(
+                        Math.max(0, fromDisplayUnit(Number(e.target.value) || 0))
+                      )
+                    }
                     className="w-full px-3 py-2 rounded-lg border border-slate-200 font-mono text-sm text-[#0B1F3A] tabular-nums"
                   />
                 </div>
                 <div>
                   <label htmlFor="rate-stay" className="block text-xs text-slate-600 mb-1">
-                    Accommodation per room / night
+                    Homestay or hotel per room / night
                   </label>
                   <input
                     id="rate-stay"
                     type="number"
                     min={0}
-                    max={5000}
-                    value={customNightlyRate}
-                    onChange={(e) => setCustomNightlyRate(Math.max(0, Number(e.target.value) || 0))}
+                    value={toDisplayUnit(customNightlyRateUsd)}
+                    onChange={(e) =>
+                      setCustomNightlyRateUsd(
+                        Math.max(0, fromDisplayUnit(Number(e.target.value) || 0))
+                      )
+                    }
                     className="w-full px-3 py-2 rounded-lg border border-slate-200 font-mono text-sm text-[#0B1F3A] tabular-nums"
                   />
                 </div>
@@ -276,23 +343,29 @@ export function BudgetPage() {
                     id="rate-food"
                     type="number"
                     min={0}
-                    max={1000}
-                    value={customFoodPerPersonDay}
-                    onChange={(e) => setCustomFoodPerPersonDay(Math.max(0, Number(e.target.value) || 0))}
+                    value={toDisplayUnit(customFoodPerPersonDayUsd)}
+                    onChange={(e) =>
+                      setCustomFoodPerPersonDayUsd(
+                        Math.max(0, fromDisplayUnit(Number(e.target.value) || 0))
+                      )
+                    }
                     className="w-full px-3 py-2 rounded-lg border border-slate-200 font-mono text-sm text-[#0B1F3A] tabular-nums"
                   />
                 </div>
                 <div>
                   <label htmlFor="rate-activities" className="block text-xs text-slate-600 mb-1">
-                    Activities & tickets per person / day
+                    Activities & entry per person / day
                   </label>
                   <input
                     id="rate-activities"
                     type="number"
                     min={0}
-                    max={2000}
-                    value={customActivitiesPerPersonDay}
-                    onChange={(e) => setCustomActivitiesPerPersonDay(Math.max(0, Number(e.target.value) || 0))}
+                    value={toDisplayUnit(customActivitiesPerPersonDayUsd)}
+                    onChange={(e) =>
+                      setCustomActivitiesPerPersonDayUsd(
+                        Math.max(0, fromDisplayUnit(Number(e.target.value) || 0))
+                      )
+                    }
                     className="w-full px-3 py-2 rounded-lg border border-slate-200 font-mono text-sm text-[#0B1F3A] tabular-nums"
                   />
                 </div>
@@ -307,20 +380,21 @@ export function BudgetPage() {
                 Approximate Total Estimate ({travelers} {travelers === 1 ? 'traveller' : 'travellers'}, {days} days)
               </p>
               <p className="font-mono text-4xl font-bold text-[#0B1F3A] tabular-nums mb-4">
-                ~${breakdown.total.toLocaleString()} <span className="text-base font-normal text-slate-500">USD</span>
+                ~{formatAmount(breakdown.total)}{' '}
+                <span className="text-base font-normal text-slate-500">{currency}</span>
               </p>
 
               <div className="grid grid-cols-2 gap-4 py-4 border-y border-slate-100 mb-6">
                 <div>
                   <p className="text-xs text-slate-500">Approx. per person</p>
                   <p className="font-mono text-lg font-semibold text-[#0B1F3A] tabular-nums">
-                    ~${breakdown.perPerson.toLocaleString()}
+                    ~{formatAmount(breakdown.perPerson)}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-500">Approx. group / day</p>
                   <p className="font-mono text-lg font-semibold text-[#0B1F3A] tabular-nums">
-                    ~${breakdown.perDay.toLocaleString()}
+                    ~{formatAmount(breakdown.perDay)}
                   </p>
                 </div>
               </div>
@@ -349,7 +423,7 @@ export function BudgetPage() {
                         {cat.label}
                       </span>
                       <span className="font-mono font-medium text-[#0B1F3A] tabular-nums">
-                        ~${cat.amount.toLocaleString()} ({pct}%)
+                        ~{formatAmount(cat.amount)} ({pct}%)
                       </span>
                     </div>
                   );
@@ -368,7 +442,7 @@ export function BudgetPage() {
             <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-start gap-3 text-xs text-slate-600 leading-relaxed">
               <Info className="w-4 h-4 text-[#0284C7] shrink-0 mt-0.5" aria-hidden="true" />
               <p>
-                All figures shown are <strong>approximate planning estimates</strong> based on typical seasonal rates. Actual prices vary with booking lead time, airfare class, and exchange rates.
+                All figures shown are <strong>approximate planning estimates</strong> based on typical seasonal rates. Actual prices vary with train/flight timing, season, and exchange rates.
               </p>
             </div>
           </div>

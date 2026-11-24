@@ -81,24 +81,35 @@ function normalizeBudgetTier(value: unknown): BudgetTier {
 }
 
 function buildDemoItinerary(input: PlannerRequestPayload): GeneratedItinerary {
-  const dailyPerPersonMap: Record<BudgetTier, number> = {
-    budget: 115,
-    moderate: 225,
-    luxury: 480,
-  };
+  const isLikelyIndia =
+    /india|hampi|gokarna|spiti|coorg|varkala|ziro|bundi|tawang|orchha|pondicherry|puducherry|andaman|havelock|chikmagalur|majuli|meghalaya|kerala|karnataka|himachal|rajasthan|arunachal|uttarakhand|goa|ladakh|munnar|darjeeling|kodaikanal/i.test(
+      input.destination
+    );
+
+  const dailyPerPersonMap: Record<BudgetTier, number> = isLikelyIndia
+    ? {
+        budget: 28,
+        moderate: 62,
+        luxury: 165,
+      }
+    : {
+        budget: 95,
+        moderate: 195,
+        luxury: 440,
+      };
   const dailyPerPerson = dailyPerPersonMap[input.budgetTier];
   const dailyGroupCost = dailyPerPerson * input.travelers;
   const interestFocus =
     input.interests.length > 0 ? input.interests.join(', ') : 'local highlights and authentic dining';
 
   const dayThemes = [
-    'Arrival, Neighbourhood Orientation & Evening Stroll',
-    'Historic Core & Cultural Landmarks',
-    'Local Markets, Artisan Quarters & Scenic Viewpoints',
-    'Signature Excursion & Natural Landscapes',
-    'Hidden Neighbourhoods, Workshops & Culinary Trail',
-    'Coastal or Highland Escape & Sunset Promenade',
-    'Slow Morning, Gallery Hopping & Farewell Dinner',
+    'Arrival, Village or Town Orientation & Evening Walk',
+    'Heritage Landmarks & Morning Local Life',
+    'Scenic Trails, Artisan Quarters & Quiet Viewpoints',
+    'Countryside Excursion & Natural Landscapes',
+    'Hidden Lanes, Workshops & Regional Food Trail',
+    'Sunrise Overlook & Relaxed Local Promenade',
+    'Slow Morning, Craft Markets & Farewell Meal',
   ];
 
   const days: ItineraryDay[] = Array.from({ length: input.daysCount }, (_, idx) => {
@@ -108,39 +119,39 @@ function buildDemoItinerary(input: PlannerRequestPayload): GeneratedItinerary {
     const isLast = dayNum === input.daysCount;
 
     const places = isFirst
-      ? [`${input.destination} Central District`, `${input.destination} Old Town Square`, 'Waterfront Promenade']
+      ? [`${input.destination} Old Town / Village Centre`, 'Main Promenade or Ghat', 'Local Market Lane']
       : isLast
-        ? ['Morning Artisan Market', 'Botanical Garden or Museum Quarter', 'Departure Transit Hub']
+        ? ['Morning Tea & Craft Stalls', 'Quiet Garden or Heritage Spot', 'Return Transit Point']
         : [
-            `${input.destination} Historic Landmark #${dayNum}`,
-            `Scenic Overlook & Park`,
-            `${input.interests[idx % Math.max(1, input.interests.length)] || 'Cultural'} District`,
+            `${input.destination} Scenic Landmark #${dayNum}`,
+            `Quiet Valley / Coastal Overlook`,
+            `${input.interests[idx % Math.max(1, input.interests.length)] || 'Cultural'} Pocket`,
           ];
 
     const activities = isFirst
       ? [
-          `Arrive from ${input.startingLocation} and check into your accommodation.`,
-          `Take an unhurried orientation walk through the historic centre.`,
-          `Enjoy a relaxed evening welcome dinner featuring regional classics.`,
+          `Travel from ${input.startingLocation} and settle into a local homestay or boutique hotel.`,
+          `Take a slow evening orientation walk through quiet lanes.`,
+          `Enjoy a relaxed dinner featuring regional home-style specialties.`,
         ]
       : isLast
         ? [
-            `Pick up locally roasted coffee and browse morning crafts.`,
-            `Visit one final gallery or heritage site before packing.`,
-            `Transfer smoothly toward your return journey to ${input.startingLocation}.`,
+            `Pick up locally sourced coffee, tea, or crafts at a neighborhood shop.`,
+            `Visit one last viewpoint before packing up.`,
+            `Begin the comfortable journey back toward ${input.startingLocation}.`,
           ]
         : [
-            `Morning exploration tailored to ${input.interests[0] || 'sightseeing'} before peak crowds.`,
-            `Midday guided walk or self-paced neighborhood discovery.`,
-            `Golden-hour scenic stop and relaxed evening stroll.`,
+            `Early-morning visit focused on ${input.interests[0] || 'sightseeing'} before midday warmth.`,
+            `Unhurried afternoon exploring small local alleys or nature trails.`,
+            `Golden-hour sunset viewpoint and quiet evening rest.`,
           ];
 
     const foodSuggestions = [
-      `Morning bakery stop for fresh regional pastries and espresso`,
-      `Neighborhood bistro lunch highlighting seasonal local produce`,
+      `Morning filter coffee / masala chai with fresh local breakfast`,
+      `Family-run midday thali or seasonal regional lunch`,
       input.budgetTier === 'luxury'
-        ? `Chef-led tasting menu at a renowned ${input.destination} dining room`
-        : `Casual family-run restaurant known for regional specialties`,
+        ? `Curated regional tasting dinner at a heritage courtyard dining room`
+        : `Warm local dinner at a beloved neighborhood eatery`,
     ];
 
     return {
@@ -155,7 +166,20 @@ function buildDemoItinerary(input: PlannerRequestPayload): GeneratedItinerary {
   });
 
   const subtotalDays = days.reduce((sum, d) => sum + d.estimatedCostUsd, 0);
-  const transportEstimate = Math.round(input.travelers * (input.budgetTier === 'luxury' ? 680 : input.budgetTier === 'moderate' ? 380 : 210));
+  const transportEstimate = Math.round(
+    input.travelers *
+      (isLikelyIndia
+        ? input.budgetTier === 'luxury'
+          ? 220
+          : input.budgetTier === 'moderate'
+            ? 95
+            : 40
+        : input.budgetTier === 'luxury'
+          ? 680
+          : input.budgetTier === 'moderate'
+            ? 380
+            : 210)
+  );
   const accommodation = Math.round(subtotalDays * 0.45);
   const food = Math.round(subtotalDays * 0.28);
   const activities = Math.round(subtotalDays * 0.27);
@@ -170,7 +194,7 @@ function buildDemoItinerary(input: PlannerRequestPayload): GeneratedItinerary {
     travelers: input.travelers,
     budgetTier: input.budgetTier,
     interests: input.interests,
-    summary: `A balanced ${input.daysCount}-day ${input.budgetTier} itinerary for ${input.travelers} traveler${input.travelers > 1 ? 's' : ''} departing ${input.startingLocation} to ${input.destination}, focused on ${interestFocus}.`,
+    summary: `A balanced ${input.daysCount}-day ${input.budgetTier} itinerary for ${input.travelers} traveler${input.travelers > 1 ? 's' : ''} traveling from ${input.startingLocation} to ${input.destination}, focused on ${interestFocus}.`,
     estimatedTotal: total,
     currency: 'USD',
     budgetBreakdown: {
@@ -290,8 +314,8 @@ async function startServer() {
         travelDates ? `Travel dates or window: ${travelDates}.` : '',
         `Budget tier: ${budgetTier}.`,
         interests.length > 0 ? `Traveler interests: ${interests.join(', ')}.` : 'Balance culture, scenery, and local cuisine.',
+        `Focus on authentic local neighbourhoods, quiet scenic spots, homestays or local stays, regional transit (trains, buses, ferries, or scenic drives), and specific regional food suggestions.`,
         `All monetary estimates must be approximate USD totals for the entire group of ${travelers} traveler(s).`,
-        `Include real, geographically logical neighbourhoods, landmarks, activities, and specific local food suggestions for each day.`,
       ]
         .filter(Boolean)
         .join(' ');
@@ -302,7 +326,7 @@ async function startServer() {
           contents: prompt,
         config: {
           systemInstruction:
-            'You are TripMate, a seasoned travel planner. Design practical, geographically sensible day-by-day itineraries with realistic approximate costs in USD. Avoid impossible transit hops.',
+            'You are TripMate, a seasoned travel planner with deep expertise in small towns, hill hamlets, coastal villages, and domestic rail/road routes across India as well as offbeat destinations worldwide. Design practical, geographically sensible day-by-day itineraries with realistic approximate costs.',
           responseMimeType: 'application/json',
           responseSchema: {
             type: Type.OBJECT,

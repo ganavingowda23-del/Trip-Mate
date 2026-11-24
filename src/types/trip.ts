@@ -10,9 +10,11 @@ export type DestinationCategory =
 export interface Destination {
   id: string;
   name: string;
+  stateOrProvince: string;
   country: string;
   region: string;
   category: DestinationCategory;
+  isSmallPlace: boolean;
   image: string;
   shortDescription: string;
   fullDescription: string;

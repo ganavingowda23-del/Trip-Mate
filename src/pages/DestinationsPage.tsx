@@ -2,8 +2,11 @@ import { ArrowRight, Calendar, MapPin, Search, Utensils, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { DestinationImage } from '../components/DestinationImage';
-import { DESTINATION_CATEGORIES, DESTINATIONS } from '../data/destinations';
+import { DESTINATION_CATEGORIES, DESTINATIONS, INR_PER_USD } from '../data/destinations';
 import type { Destination, DestinationCategory } from '../types/trip';
+
+type ScopeFilter = 'all' | 'india' | 'international';
+type CurrencyDisplay = 'INR' | 'USD';
 
 export function DestinationsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -16,27 +19,41 @@ export function DestinationsPage() {
       ? initialCategory
       : 'All'
   );
+  const [scope, setScope] = useState<ScopeFilter>('all');
+  const [selectedCountry, setSelectedCountry] = useState<string>('All');
+  const [currency, setCurrency] = useState<CurrencyDisplay>('INR');
   const [selectedDest, setSelectedDest] = useState<Destination | null>(null);
 
   useEffect(() => {
     setQueryText(searchParams.get('q') ?? '');
   }, [searchParams]);
 
+  const countries = useMemo(() => {
+    const unique = Array.from(new Set(DESTINATIONS.map((d) => d.country)));
+    return ['All', ...unique];
+  }, []);
+
   const filteredDestinations = useMemo(() => {
     const q = queryText.trim().toLowerCase();
     return DESTINATIONS.filter((dest) => {
+      const matchesScope =
+        scope === 'all' ||
+        (scope === 'india' && dest.country === 'India') ||
+        (scope === 'international' && dest.country !== 'India');
+      const matchesCountry = selectedCountry === 'All' || dest.country === selectedCountry;
       const matchesCategory =
         activeCategory === 'All' || dest.category === (activeCategory as DestinationCategory);
       const matchesQuery =
         !q ||
         dest.name.toLowerCase().includes(q) ||
+        dest.stateOrProvince.toLowerCase().includes(q) ||
         dest.country.toLowerCase().includes(q) ||
         dest.region.toLowerCase().includes(q) ||
         dest.category.toLowerCase().includes(q) ||
         dest.shortDescription.toLowerCase().includes(q);
-      return matchesCategory && matchesQuery;
+      return matchesScope && matchesCountry && matchesCategory && matchesQuery;
     });
-  }, [activeCategory, queryText]);
+  }, [activeCategory, queryText, scope, selectedCountry]);
 
   const handleCategoryChange = (cat: string) => {
     setActiveCategory(cat);
@@ -49,31 +66,149 @@ export function DestinationsPage() {
     setSearchParams(next, { replace: true });
   };
 
+  const handleScopeChange = (nextScope: ScopeFilter) => {
+    setScope(nextScope);
+    if (nextScope === 'india') {
+      setSelectedCountry('India');
+    } else if (nextScope === 'international' && selectedCountry === 'India') {
+      setSelectedCountry('All');
+    } else if (nextScope === 'all') {
+      setSelectedCountry('All');
+    }
+  };
+
   const resetFilters = () => {
     setQueryText('');
     setActiveCategory('All');
+    setScope('all');
+    setSelectedCountry('All');
     setSearchParams({}, { replace: true });
   };
+
+  const formatBudget = (usdAmount: number) => {
+    if (currency === 'INR') {
+      const inr = Math.round((usdAmount * INR_PER_USD) / 100) * 100;
+      return `₹${inr.toLocaleString('en-IN')}`;
+    }
+    return `$${usdAmount.toLocaleString()}`;
+  };
+
+  const indiaCount = DESTINATIONS.filter((d) => d.country === 'India').length;
+  const internationalCount = DESTINATIONS.length - indiaCount;
 
   return (
     <div className="bg-[#F8FAFC] min-h-[calc(100vh-4rem)]">
       <div className="bg-[#0B1F3A] text-white py-12 sm:py-16 border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-balance mb-3">
-            Explore Destinations
-          </h1>
-          <p className="text-slate-300 text-base max-w-2xl">
-            Browse coastlines, mountain valleys, historic quarters, and outdoor adventures with approximate daily budgets and ideal travel seasons.
-          </p>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+          <div>
+            <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-balance mb-3">
+              Explore Small Places & Destinations
+            </h1>
+            <p className="text-slate-300 text-base max-w-2xl">
+              Discover quiet towns, coastal coves, valleys, and heritage gems—prioritizing domestic escapes across India ({indiaCount} places) alongside small towns in {internationalCount} international regions.
+            </p>
+          </div>
+
+          <div
+            className="inline-flex items-center gap-1 p-1 rounded-xl bg-white/10 border border-white/15 self-start lg:self-auto"
+            role="group"
+            aria-label="Display currency"
+          >
+            <button
+              type="button"
+              onClick={() => setCurrency('INR')}
+              aria-pressed={currency === 'INR'}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                currency === 'INR' ? 'bg-[#38BDF8] text-[#0B1F3A]' : 'text-white hover:bg-white/10'
+              }`}
+            >
+              INR (₹)
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrency('USD')}
+              aria-pressed={currency === 'USD'}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                currency === 'USD' ? 'bg-[#38BDF8] text-[#0B1F3A]' : 'text-white hover:bg-white/10'
+              }`}
+            >
+              USD ($)
+            </button>
+          </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {/* Search & Category Controls */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-9">
+        {/* Top Row: Scope & Country Filter + Search */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-5">
+          <div className="flex flex-wrap items-center gap-3">
+            <div
+              className="inline-flex items-center gap-1 p-1 bg-white border border-slate-200 rounded-xl"
+              role="group"
+              aria-label="Filter by domestic India or international"
+            >
+              <button
+                type="button"
+                onClick={() => handleScopeChange('all')}
+                aria-pressed={scope === 'all'}
+                className={`px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${
+                  scope === 'all' ? 'bg-[#0B1F3A] text-white' : 'text-slate-600 hover:text-[#0B1F3A]'
+                }`}
+              >
+                All (India First)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleScopeChange('india')}
+                aria-pressed={scope === 'india'}
+                className={`px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${
+                  scope === 'india' ? 'bg-[#0B1F3A] text-white' : 'text-slate-600 hover:text-[#0B1F3A]'
+                }`}
+              >
+                India Domestic ({indiaCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => handleScopeChange('international')}
+                aria-pressed={scope === 'international'}
+                className={`px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${
+                  scope === 'international'
+                    ? 'bg-[#0B1F3A] text-white'
+                    : 'text-slate-600 hover:text-[#0B1F3A]'
+                }`}
+              >
+                Other Countries ({internationalCount})
+              </button>
+            </div>
+
+            <div>
+              <label htmlFor="country-filter" className="sr-only">
+                Filter by country
+              </label>
+              <select
+                id="country-filter"
+                value={selectedCountry}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedCountry(val);
+                  if (val === 'India') setScope('india');
+                  else if (val === 'All') setScope('all');
+                  else setScope('international');
+                }}
+                className="px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-[#0B1F3A] focus:border-[#0284C7] focus:outline-none cursor-pointer"
+              >
+                {countries.map((c) => (
+                  <option key={c} value={c}>
+                    {c === 'All' ? 'All Countries' : c}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <div className="relative w-full lg:max-w-sm">
             <label htmlFor="destinations-search" className="sr-only">
-              Search destinations by name, country, or keyword
+              Search destinations by town, state, country, or keyword
             </label>
             <Search
               className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -84,7 +219,7 @@ export function DestinationsPage() {
               type="text"
               value={queryText}
               onChange={(e) => setQueryText(e.target.value)}
-              placeholder="Search city, country, or region..."
+              placeholder="Search town, state, or country..."
               className="w-full pl-10 pr-9 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-[#0B1F3A] placeholder:text-slate-400 focus:border-[#0284C7] focus:outline-none"
             />
             {queryText && (
@@ -92,15 +227,18 @@ export function DestinationsPage() {
                 type="button"
                 onClick={() => setQueryText('')}
                 aria-label="Clear search"
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             )}
           </div>
+        </div>
 
+        {/* Category Tabs */}
+        <div className="mb-8">
           <div
-            className="flex flex-wrap items-center gap-1.5 bg-white p-1.5 rounded-xl border border-slate-200"
+            className="inline-flex flex-wrap items-center gap-1.5 bg-white p-1.5 rounded-xl border border-slate-200"
             role="group"
             aria-label="Filter destinations by category"
           >
@@ -129,15 +267,15 @@ export function DestinationsPage() {
         <div className="mb-6 flex items-center justify-between text-sm text-slate-600">
           <p className="tabular-nums">
             Showing <span className="font-semibold text-[#0B1F3A]">{filteredDestinations.length}</span>{' '}
-            {filteredDestinations.length === 1 ? 'destination' : 'destinations'}
+            {filteredDestinations.length === 1 ? 'small destination' : 'small destinations'}
           </p>
-          {(queryText || activeCategory !== 'All') && (
+          {(queryText || activeCategory !== 'All' || scope !== 'all' || selectedCountry !== 'All') && (
             <button
               type="button"
               onClick={resetFilters}
               className="text-sm font-medium text-[#0284C7] hover:text-[#0B1F3A] cursor-pointer"
             >
-              Reset filters
+              Reset all filters
             </button>
           )}
         </div>
@@ -150,7 +288,7 @@ export function DestinationsPage() {
               No matching destinations found
             </h2>
             <p className="text-sm text-slate-600 max-w-md mx-auto mb-6">
-              Try another keyword or clear your category filter. You can also enter any custom city directly in the AI Trip Planner.
+              Try clearing your filters or enter any Indian town or global place directly in the AI Trip Planner.
             </p>
             <div className="flex flex-wrap justify-center gap-3">
               <button
@@ -168,7 +306,7 @@ export function DestinationsPage() {
                 }
                 className="px-5 py-2.5 rounded-lg border border-slate-300 bg-white text-[#0B1F3A] text-sm font-medium hover:bg-slate-50 transition-colors"
               >
-                Plan custom destination
+                Plan custom place
               </Link>
             </div>
           </div>
@@ -183,14 +321,14 @@ export function DestinationsPage() {
                   <div className="aspect-[4/3] w-full overflow-hidden bg-slate-100">
                     <DestinationImage
                       src={dest.image}
-                      alt={`${dest.name}, ${dest.country}`}
+                      alt={`${dest.name}, ${dest.stateOrProvince}, ${dest.country}`}
                       label={dest.name}
                       className="w-full h-full object-cover"
                     />
                   </div>
                   <div className="p-6">
                     <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mb-2">
-                      <span>{dest.country}</span>
+                      <span>{dest.stateOrProvince}, {dest.country}</span>
                       <span aria-hidden="true">·</span>
                       <span>{dest.category}</span>
                       <span aria-hidden="true">·</span>
@@ -207,7 +345,7 @@ export function DestinationsPage() {
                       <p className="flex items-center justify-between gap-2">
                         <span className="text-slate-500">Est. daily budget (approx.)</span>
                         <span className="font-mono font-medium text-[#0B1F3A] tabular-nums">
-                          ${dest.dailyBudgetUsd.budget}–${dest.dailyBudgetUsd.luxury}/day
+                          {formatBudget(dest.dailyBudgetUsd.budget)}–{formatBudget(dest.dailyBudgetUsd.luxury)}/day
                         </span>
                       </p>
                       <p className="flex items-center justify-between gap-2">
@@ -229,7 +367,7 @@ export function DestinationsPage() {
                     View highlights
                   </button>
                   <Link
-                    to={`/planner?destination=${encodeURIComponent(dest.name)}&days=${dest.recommendedDays}`}
+                    to={`/planner?destination=${encodeURIComponent(`${dest.name}, ${dest.country}`)}&days=${dest.recommendedDays}`}
                     className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#0B1F3A] text-white text-xs font-semibold hover:bg-[#153159] transition-colors whitespace-nowrap"
                   >
                     Plan Trip
@@ -258,7 +396,7 @@ export function DestinationsPage() {
             <div className="aspect-[16/9] w-full overflow-hidden bg-slate-100 relative">
               <DestinationImage
                 src={selectedDest.image}
-                alt={`${selectedDest.name}, ${selectedDest.country}`}
+                alt={`${selectedDest.name}, ${selectedDest.stateOrProvince}, ${selectedDest.country}`}
                 label={selectedDest.name}
                 className="w-full h-full object-cover"
               />
@@ -273,8 +411,8 @@ export function DestinationsPage() {
             </div>
 
             <div className="p-6 sm:p-8">
-              <div className="flex items-center gap-2 text-xs text-slate-500 mb-2">
-                <span>{selectedDest.country}</span>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mb-2">
+                <span>{selectedDest.stateOrProvince}, {selectedDest.country}</span>
                 <span aria-hidden="true">·</span>
                 <span>{selectedDest.region}</span>
                 <span aria-hidden="true">·</span>
@@ -291,19 +429,19 @@ export function DestinationsPage() {
                 <div>
                   <p className="text-xs text-slate-500 mb-1">Budget Tier (approx.)</p>
                   <p className="font-mono text-sm font-semibold text-[#0B1F3A] tabular-nums">
-                    ${selectedDest.dailyBudgetUsd.budget}/day
+                    {formatBudget(selectedDest.dailyBudgetUsd.budget)}/day
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-500 mb-1">Moderate Tier (approx.)</p>
                   <p className="font-mono text-sm font-semibold text-[#0B1F3A] tabular-nums">
-                    ${selectedDest.dailyBudgetUsd.moderate}/day
+                    {formatBudget(selectedDest.dailyBudgetUsd.moderate)}/day
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-500 mb-1">Luxury Tier (approx.)</p>
                   <p className="font-mono text-sm font-semibold text-[#0B1F3A] tabular-nums">
-                    ${selectedDest.dailyBudgetUsd.luxury}/day
+                    {formatBudget(selectedDest.dailyBudgetUsd.luxury)}/day
                   </p>
                 </div>
               </div>
@@ -341,7 +479,7 @@ export function DestinationsPage() {
                   Estimate Budget
                 </Link>
                 <Link
-                  to={`/planner?destination=${encodeURIComponent(selectedDest.name)}&days=${selectedDest.recommendedDays}`}
+                  to={`/planner?destination=${encodeURIComponent(`${selectedDest.name}, ${selectedDest.country}`)}&days=${selectedDest.recommendedDays}`}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#0B1F3A] text-white text-sm font-semibold hover:bg-[#153159] transition-colors"
                 >
                   Build Itinerary

@@ -2,7 +2,7 @@ import { ArrowRight, Calculator, Calendar, Compass, MapPin, MessageSquare, Searc
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { DestinationImage } from '../components/DestinationImage';
-import { DESTINATIONS, HERO_IMAGE } from '../data/destinations';
+import { DESTINATIONS, HERO_IMAGE, INR_PER_USD } from '../data/destinations';
 
 export function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,7 +27,7 @@ export function HomePage() {
         <div className="absolute inset-0">
           <DestinationImage
             src={HERO_IMAGE}
-            alt="Sunlit Mediterranean turquoise cove with limestone cliffs and white sailboat"
+            alt="Sunlit coastal cove with limestone cliffs and sailboat at golden hour"
             label="Explore the World with TripMate"
             className="w-full h-full object-cover object-center"
           />
@@ -46,7 +46,7 @@ export function HomePage() {
               Explore the World with TripMate
             </h1>
             <p className="text-base sm:text-lg text-slate-200 leading-relaxed max-w-xl mb-8">
-              Plan smarter, travel better and create unforgettable memories.
+              Plan smarter, travel better and create unforgettable memories — from quiet small towns across India to hidden villages around the globe.
             </p>
 
             {/* Destination Search Bar */}
@@ -66,7 +66,7 @@ export function HomePage() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Where would you like to go? (e.g. Kyoto, Amalfi, Lisbon)"
+                  placeholder="Try Gokarna, Hampi, Spiti, Bundi, or Shirakawa-go..."
                   className="w-full px-3 py-2.5 text-sm text-[#0B1F3A] placeholder:text-slate-400 bg-transparent focus:outline-none"
                 />
               </div>
@@ -107,10 +107,10 @@ export function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="max-w-2xl mb-12">
             <h2 className="font-display text-2xl sm:text-3xl font-semibold text-[#0B1F3A] tracking-tight text-balance mb-3">
-              Everything you need from first spark to departure
+              Built for meaningful domestic & international journeys
             </h2>
             <p className="text-slate-600 text-base leading-relaxed">
-              Build day-by-day itineraries, estimate realistic trip budgets, and save plans across sessions without clutter.
+              Discover quiet coastal towns, Himalayan valleys, and heritage gems across India and every country—with realistic budgets and editable day plans.
             </p>
           </div>
 
@@ -127,7 +127,7 @@ export function HomePage() {
                   01. Personalised AI Itineraries
                 </h3>
                 <p className="text-sm text-slate-600 leading-relaxed mb-5">
-                  Share your destination, travel dates, group size, and interests to generate an editable day-by-day route with dining ideas.
+                  Share your starting city, small-town destination, group size, and interests to generate an editable day-by-day route.
                 </p>
               </div>
               <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#0284C7] group-hover:translate-x-0.5 transition-transform">
@@ -148,7 +148,7 @@ export function HomePage() {
                   02. Clear Budget Estimates
                 </h3>
                 <p className="text-sm text-slate-600 leading-relaxed mb-5">
-                  Compare approximate transport, accommodation, food, and activity costs across budget tiers and traveller counts.
+                  Compare approximate transport, homestay or hotel, food, and activity costs in INR (₹) or USD ($).
                 </p>
               </div>
               <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#0284C7] group-hover:translate-x-0.5 transition-transform">
@@ -169,7 +169,7 @@ export function HomePage() {
                   03. Travel Assistant & Saved Plans
                 </h3>
                 <p className="text-sm text-slate-600 leading-relaxed mb-5">
-                  Ask practical packing, transit, or seasonal timing questions and keep your favourite itineraries saved locally or in the cloud.
+                  Ask practical train, road-trip, packing, or seasonal questions and keep your favourite itineraries saved locally or in Firestore.
                 </p>
               </div>
               <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#0284C7] group-hover:translate-x-0.5 transition-transform">
@@ -181,74 +181,77 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* Popular Destinations */}
+      {/* Popular Small Places in India & Beyond */}
       <section className="bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10">
             <div>
               <h2 className="font-display text-2xl sm:text-3xl font-semibold text-[#0B1F3A] tracking-tight mb-2">
-                Popular destinations
+                Small places across India to explore first
               </h2>
               <p className="text-slate-600 text-base">
-                Curated coastlines, alpine valleys, historic cities, and highland trails ready to customize.
+                Handpicked coastal towns, valley hamlets, and heritage gems in India—plus offbeat small places worldwide.
               </p>
             </div>
             <Link
               to="/destinations"
               className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#0284C7] hover:text-[#0B1F3A] transition-colors whitespace-nowrap shrink-0"
             >
-              View all destinations
+              Explore all {DESTINATIONS.length} small places
               <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </Link>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7">
-            {featuredDestinations.map((dest) => (
-              <article
-                key={dest.id}
-                className="group bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col justify-between hover:border-slate-300 transition-colors"
-              >
-                <div>
-                  <div className="aspect-[4/3] w-full overflow-hidden bg-slate-100">
-                    <DestinationImage
-                      src={dest.image}
-                      alt={`${dest.name}, ${dest.country}`}
-                      label={dest.name}
-                      className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
-                    />
-                  </div>
-                  <div className="p-6">
-                    <div className="flex items-center gap-2 text-xs text-slate-500 mb-2">
-                      <span>{dest.country}</span>
-                      <span aria-hidden="true">·</span>
-                      <span>{dest.category}</span>
-                      <span aria-hidden="true">·</span>
-                      <span className="tabular-nums">~${dest.dailyBudgetUsd.moderate}/day</span>
+            {featuredDestinations.map((dest) => {
+              const approxInr = Math.round((dest.dailyBudgetUsd.moderate * INR_PER_USD) / 100) * 100;
+              return (
+                <article
+                  key={dest.id}
+                  className="group bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col justify-between hover:border-slate-300 transition-colors"
+                >
+                  <div>
+                    <div className="aspect-[4/3] w-full overflow-hidden bg-slate-100">
+                      <DestinationImage
+                        src={dest.image}
+                        alt={`${dest.name}, ${dest.stateOrProvince}, ${dest.country}`}
+                        label={dest.name}
+                        className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
+                      />
                     </div>
-                    <h3 className="font-display text-xl font-semibold text-[#0B1F3A] mb-2">
-                      {dest.name}
-                    </h3>
-                    <p className="text-sm text-slate-600 leading-relaxed mb-4">
-                      {dest.shortDescription}
-                    </p>
+                    <div className="p-6">
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mb-2">
+                        <span>{dest.stateOrProvince}, {dest.country}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>{dest.category}</span>
+                        <span aria-hidden="true">·</span>
+                        <span className="tabular-nums">~₹{approxInr.toLocaleString('en-IN')}/day</span>
+                      </div>
+                      <h3 className="font-display text-xl font-semibold text-[#0B1F3A] mb-2">
+                        {dest.name}
+                      </h3>
+                      <p className="text-sm text-slate-600 leading-relaxed mb-4">
+                        {dest.shortDescription}
+                      </p>
+                    </div>
                   </div>
-                </div>
 
-                <div className="px-6 pb-6 pt-2 flex items-center justify-between border-t border-slate-100">
-                  <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
-                    Best: {dest.bestTimeToVisit.split('&')[0].trim()}
-                  </span>
-                  <Link
-                    to={`/planner?destination=${encodeURIComponent(dest.name)}&days=${dest.recommendedDays}`}
-                    className="inline-flex items-center gap-1 text-sm font-semibold text-[#0284C7] hover:text-[#0B1F3A] transition-colors whitespace-nowrap"
-                  >
-                    Plan trip
-                    <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
-                  </Link>
-                </div>
-              </article>
-            ))}
+                  <div className="px-6 pb-6 pt-2 flex items-center justify-between border-t border-slate-100">
+                    <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
+                      Best: {dest.bestTimeToVisit.split('&')[0].trim()}
+                    </span>
+                    <Link
+                      to={`/planner?destination=${encodeURIComponent(`${dest.name}, ${dest.stateOrProvince}`)}&days=${dest.recommendedDays}`}
+                      className="inline-flex items-center gap-1 text-sm font-semibold text-[#0284C7] hover:text-[#0B1F3A] transition-colors whitespace-nowrap"
+                    >
+                      Plan trip
+                      <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+                    </Link>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -263,10 +266,10 @@ export function HomePage() {
                 <span>Ready when you are</span>
               </div>
               <h2 className="font-display text-2xl sm:text-3xl font-semibold text-white text-balance mb-3">
-                Turn your next travel idea into a day-by-day plan in seconds
+                Turn your next weekend escape or long journey into a clear day-by-day plan
               </h2>
               <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-                Adjust every stop, compare approximate costs in our budget calculator, and save your favourite routes for later.
+                Adjust every stop, compare approximate costs in INR or USD, and save your favourite routes for later.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3 shrink-0">

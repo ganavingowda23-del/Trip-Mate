@@ -8,10 +8,10 @@ interface UiChatMessage extends ChatMessagePayload {
 }
 
 const STARTER_PROMPTS = [
-  'What should I pack for 6 days in Kyoto during autumn?',
-  'How can 2 travellers keep a 5-day Lisbon trip under $1,800?',
-  'Best time of year and transit tips for the Amalfi Coast?',
-  'What documents and gear are essential for trekking in Patagonia?',
+  'Best way to reach Hampi from Bengaluru and 4-day pacing tips?',
+  'What should I pack for Spiti Valley (Kaza) in June?',
+  'How can 2 travellers budget a 5-day Meghalaya root-bridge trip?',
+  'Quiet small towns in Japan or Europe similar to Coorg or Gokarna?',
 ];
 
 function formatTime(): string {
