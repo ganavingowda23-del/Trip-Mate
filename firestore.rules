@@ -1,0 +1,134 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidBudgetTier(tier) {
+      return tier is string && tier.size() <= 20 && tier in ['budget', 'moderate', 'luxury'];
+    }
+
+    function isValidInterests(interests) {
+      return interests is list
+        && interests.size() <= 10
+        && (interests.size() == 0 || (interests[0] is string && interests[0].size() >= 1 && interests[0].size() <= 40));
+    }
+
+    function isValidDays(days) {
+      return days is list
+        && days.size() >= 1
+        && days.size() <= 21
+        && days[0] is map;
+    }
+
+    function isValidTrip(data) {
+      return data.keys().hasAll([
+          'ownerId',
+          'title',
+          'destination',
+          'startingLocation',
+          'daysCount',
+          'travelers',
+          'budgetTier',
+          'interests',
+          'estimatedTotal',
+          'currency',
+          'days',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId',
+          'title',
+          'destination',
+          'startingLocation',
+          'travelDates',
+          'daysCount',
+          'travelers',
+          'budgetTier',
+          'interests',
+          'estimatedTotal',
+          'currency',
+          'days',
+          'notes',
+          'createdAt',
+          'updatedAt'
+        ])
+        && isValidId(data.ownerId)
+        && data.ownerId == request.auth.uid
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 160
+        && data.destination is string && data.destination.size() >= 1 && data.destination.size() <= 120
+        && data.startingLocation is string && data.startingLocation.size() >= 1 && data.startingLocation.size() <= 120
+        && (!('travelDates' in data) || (data.travelDates is string && data.travelDates.size() <= 80))
+        && data.daysCount is int && data.daysCount >= 1 && data.daysCount <= 21
+        && data.travelers is int && data.travelers >= 1 && data.travelers <= 20
+        && isValidBudgetTier(data.budgetTier)
+        && isValidInterests(data.interests)
+        && (data.estimatedTotal is int || data.estimatedTotal is float) && data.estimatedTotal >= 0 && data.estimatedTotal <= 1000000
+        && data.currency is string && data.currency.size() >= 1 && data.currency.size() <= 10
+        && isValidDays(data.days)
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /trips/{tripId} {
+      allow get: if isSignedIn() && isValidId(tripId) && existing().ownerId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+
+      allow create: if isVerifiedUser()
+        && isValidId(tripId)
+        && isValidTrip(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedUser()
+        && isValidId(tripId)
+        && isValidTrip(incoming())
+        && existing().ownerId == request.auth.uid
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'title',
+          'destination',
+          'startingLocation',
+          'travelDates',
+          'daysCount',
+          'travelers',
+          'budgetTier',
+          'interests',
+          'estimatedTotal',
+          'currency',
+          'days',
+          'notes',
+          'updatedAt'
+        ]);
+
+      allow delete: if isVerifiedUser()
+        && isValidId(tripId)
+        && existing().ownerId == request.auth.uid;
+    }
+  }
+}

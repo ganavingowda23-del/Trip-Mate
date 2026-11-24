@@ -1,0 +1,6 @@
+{
+  "name": "TripMate",
+  "description": "Your Journey, Your Way. Plan trips, discover destinations, estimate travel costs, and generate personalised AI travel itineraries.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

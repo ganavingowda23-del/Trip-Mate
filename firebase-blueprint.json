@@ -1,0 +1,110 @@
+{
+  "entities": {
+    "Trip": {
+      "title": "Trip",
+      "description": "A personalised travel itinerary saved by a signed-in TripMate user.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the trip owner.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "description": "User-editable trip title.",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "destination": {
+          "type": "string",
+          "description": "Target travel destination.",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "startingLocation": {
+          "type": "string",
+          "description": "Departure city or airport.",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "travelDates": {
+          "type": "string",
+          "description": "Optional preferred date range text.",
+          "maxLength": 80
+        },
+        "daysCount": {
+          "type": "integer",
+          "description": "Number of itinerary days (1 to 21)."
+        },
+        "travelers": {
+          "type": "integer",
+          "description": "Number of travelers (1 to 20)."
+        },
+        "budgetTier": {
+          "type": "string",
+          "description": "Selected travel budget tier.",
+          "enum": ["budget", "moderate", "luxury"],
+          "maxLength": 20
+        },
+        "interests": {
+          "type": "array",
+          "description": "Selected travel interests (up to 10 tags)."
+        },
+        "estimatedTotal": {
+          "type": "number",
+          "description": "Approximate total trip cost in USD."
+        },
+        "currency": {
+          "type": "string",
+          "description": "Display currency code.",
+          "maxLength": 10
+        },
+        "days": {
+          "type": "array",
+          "description": "Ordered day-by-day itinerary entries."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional user notes for the trip.",
+          "maxLength": 2000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when trip was saved."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when trip was last updated."
+        }
+      },
+      "required": [
+        "ownerId",
+        "title",
+        "destination",
+        "startingLocation",
+        "daysCount",
+        "travelers",
+        "budgetTier",
+        "interests",
+        "estimatedTotal",
+        "currency",
+        "days",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/trips/{tripId}": {
+      "schema": {
+        "$ref": "#/entities/Trip"
+      },
+      "description": "Per-user saved travel itineraries, strictly scoped to ownerId."
+    }
+  }
+}
